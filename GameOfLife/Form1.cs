@@ -12,6 +12,7 @@ namespace GameOfLife
 {
     public partial class Form1 : Form
     {
+        private int currentGeneration = 0;
         private Graphics graphics;
         private int resolution;
 
@@ -28,7 +29,11 @@ namespace GameOfLife
         {
             if (timer1.Enabled)
                 return;
-            
+
+            currentGeneration = 0;
+            Text = $"Generation {currentGeneration}";
+
+
             nudResolution.Enabled = false;
             nudDensity.Enabled = false;
             resolution = (int)nudResolution.Value;
@@ -53,7 +58,7 @@ namespace GameOfLife
 
         private void Form1_Load(object sender, EventArgs e)
         {
-
+            Text = $"Generation {++currentGeneration}";
         }
 
         private void NextGeneration()
@@ -82,6 +87,7 @@ namespace GameOfLife
             }
             field = newField;
             pictureBox1.Refresh();
+            Text = $"Generation {++currentGeneration}";
         }
 
         private int CountNeighbours(int x, int y)
@@ -105,9 +111,7 @@ namespace GameOfLife
                     var hasLife = field[col, row];
 
                     if (hasLife && !isSelfChecking)
-                    {
                         count++; // нашли живого соседа, поэтому +1
-                    }
                 }
             }
 
@@ -137,6 +141,33 @@ namespace GameOfLife
         private void buttonStop_Click(object sender, EventArgs e)
         {
             StopGame();
+        }
+
+        private void pictureBox1_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!timer1.Enabled) return;
+
+            var x = e.Location.X / resolution;
+            var y = e.Location.Y / resolution;
+            var validationPassed = ValidateMousePosition(x, y);
+
+            if (validationPassed)
+            {
+                if (e.Button == MouseButtons.Left)
+                {
+                    field[x, y] = true;
+                }
+                else if (e.Button == MouseButtons.Right)
+                {
+                    field[x, y] = false;
+                }
+            }
+        }
+
+        //валидатор, который проверяет границы picbox
+        private bool ValidateMousePosition(int x, int y)
+        {
+            return x>=0 && y>=0 && x<columns && y<rows;
         }
     }
 }
