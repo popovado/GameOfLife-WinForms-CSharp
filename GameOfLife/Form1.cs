@@ -12,13 +12,9 @@ namespace GameOfLife
 {
     public partial class Form1 : Form
     {
-        private int currentGeneration = 0;
         private Graphics graphics;
         private int resolution;
-
-        private bool[,] field;
-        private int rows;
-        private int columns;
+        private GameEngine gameEngine;
 
         public Form1()
         {
@@ -30,92 +26,43 @@ namespace GameOfLife
             if (timer1.Enabled)
                 return;
 
-            currentGeneration = 0;
-            Text = $"Generation {currentGeneration}";
-
-
             nudResolution.Enabled = false;
             nudDensity.Enabled = false;
             resolution = (int)nudResolution.Value;
 
-            rows = pictureBox1.Height/resolution;
-            columns = pictureBox1.Width/resolution;
-            field = new bool[columns,rows];
+            gameEngine = new GameEngine(
+                rows: pictureBox1.Height / resolution,
+                columns: pictureBox1.Width / resolution,
+                density: (int)(nudDensity.Minimum) + (int)(nudDensity.Maximum) - (int)(nudDensity.Value)
+                );
 
-            Random rnd = new Random();
-            for (int x = 0; x < columns; x++) 
-            {
-                for (int y = 0; y < rows; y++)
-                {
-                    field[x, y] = rnd.Next((int)nudDensity.Value)==0;
-                }
-            }
+            Text = $"Generation {gameEngine.CurrentGeneration}";
 
             pictureBox1.Image = new Bitmap(pictureBox1.Width, pictureBox1.Height);
             graphics = Graphics.FromImage(pictureBox1.Image);
             timer1.Start();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            Text = $"Generation {++currentGeneration}";
-        }
-
-        private void NextGeneration()
+        private void DrawNextGeneration()
         {
             graphics.Clear(Color.Black);
-            
-            var newField = new bool[columns, rows];
 
-            for (int x = 0; x < columns; x++) 
+            var field = gameEngine.GetCurrentGeneration();
+
+            for (int x = 0; x < field.GetLength(0); x++)
             {
-                for (int y = 0; y < rows; y++)
+                for (int y = 0; y < field.GetLength(1); y++)
                 {
-                    var neighboursCount = CountNeighbours(x, y);
-                    var hasLife = field[x, y];
-
-                    if (!hasLife && neighboursCount==3) 
-                        newField[x, y] = true;
-                    else if(hasLife && (neighboursCount<2 || neighboursCount >3))
-                        newField[x, y] = false;
-                    else
-                        newField[x, y] = field[x, y];
-
-                    if (hasLife)
+                    if (field[x,y])
+                    {
                         graphics.FillRectangle(Brushes.Crimson, x * resolution, y * resolution, resolution, resolution);
+                    }
                 }
             }
-            field = newField;
+
             pictureBox1.Refresh();
-            Text = $"Generation {++currentGeneration}";
-        }
-
-        private int CountNeighbours(int x, int y)
-        {
-            int count = 0;
-
-            for (int i = -1; i < 2; i++)
-            { 
-                for (int j = -1; j < 2; j++)
-                {
-                    //var col = x + i;
-                    //var row = y + j;
-
-                    // модифицируем расчепт кординат. ведь если нам попадется самая левая клетка, то х будет нулем, и тогда вылезет ошибка.
-                    // наше поле - как карта мира, если слева заканчивается карта, то справа она продолжается (потому что мир круглый)
-
-                    var col = (x + i + columns)% columns;
-                    var row = (y + j + rows)% rows;
-
-                    var isSelfChecking = col == x && row == y; //проверяем соседей, но нас(клетку) не считаем
-                    var hasLife = field[col, row];
-
-                    if (hasLife && !isSelfChecking)
-                        count++; // нашли живого соседа, поэтому +1
-                }
-            }
-
-            return count;
+            Text = $"Generation {gameEngine.CurrentGeneration}";
+            gameEngine.NextGeneration();
         }
 
         private void StopGame()
@@ -130,7 +77,7 @@ namespace GameOfLife
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            NextGeneration();
+            DrawNextGeneration();
         }
 
         private void buttonStart_Click(object sender, EventArgs e)
@@ -149,25 +96,16 @@ namespace GameOfLife
 
             var x = e.Location.X / resolution;
             var y = e.Location.Y / resolution;
-            var validationPassed = ValidateMousePosition(x, y);
 
-            if (validationPassed)
+            if (e.Button == MouseButtons.Left)
             {
-                if (e.Button == MouseButtons.Left)
-                {
-                    field[x, y] = true;
-                }
-                else if (e.Button == MouseButtons.Right)
-                {
-                    field[x, y] = false;
-                }
+                gameEngine.AddCell(x, y);
             }
-        }
-
-        //валидатор, который проверяет границы picbox
-        private bool ValidateMousePosition(int x, int y)
-        {
-            return x>=0 && y>=0 && x<columns && y<rows;
+            
+            else if (e.Button == MouseButtons.Right)
+            {
+                gameEngine.RemoveCell(x, y);
+            }
         }
     }
 }
